@@ -1,0 +1,205 @@
+#include <stdio.h>
+#include <sockets.h>
+#include <v7.h>
+#include <misc.h>
+#include <string.h>
+
+// #define DEFAULT_IP "::FFFF:127.0.0.1"
+#define DEFAULT_IP "::FFFF:104.236.25.60"
+#define DEFAULT_PORT 7070
+
+void setupIP(char *ip, short *port, size_t ip_n) {
+    char buffer[16] = {0};
+    printf("Setup IP [Y/N]? ");
+    fgets(buffer, sizeof(buffer) - 1, stdin);
+    switch(buffer[0]) {
+        case 'Y':
+        case 'y':
+            printf("Enter IP (IPv4 must be prefixed with ::FFFF:): ");
+            fgets(ip, ip_n - 1, stdin);
+            misc_trimlf(ip);
+            printf("Enter Port (7070 by default): ");
+            scanf("%hd", port);
+            fgets(buffer, sizeof(buffer) - 1, stdin);
+        break;
+
+        default:
+            strncpy(ip, DEFAULT_IP, ip_n - 1);
+            *port = DEFAULT_PORT;
+    }
+}
+
+int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login_n, size_t passwd_n) {
+    printf("Enter your username: ");
+    fgets(login, login_n - 1, stdin);
+    misc_trimlf(login);
+
+    misc_noecho();
+    printf("Enter your password: ");
+    fgets(passwd, passwd_n - 1, stdin);
+    misc_trimlf(passwd);
+    misc_echo();
+    printf("\n");
+
+    char buffer[16] = {0};
+    printf("[L]ogin or [R]egister? ");
+    fgets(buffer, sizeof(buffer) - 1, stdin);
+    switch(buffer[0]) {
+        case 'L':
+        case 'l':
+            strncpy(cmd, "login", cmd_n - 1);
+            return 0;
+        break;
+
+        case 'R':
+        case 'r':
+            strncpy(cmd, "register", cmd_n - 1);
+            return 0;
+        break;
+
+        default:
+            return 1;
+    }
+}
+
+void joinRoom(int s, const char *room) {
+    printf("\x1b[H\x1b[2J\x1b[3JCurrent room: #%s\n", room);
+    v7_joinRoom(s, room);
+}
+
+int main() {
+    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\n");
+
+    char server_ip[256] = {0};
+    short server_port = 0;
+
+    setupIP(server_ip, &server_port, sizeof(server_ip));
+
+    int s = socket_create(server_ip, server_port);
+    if(s == -1) {
+        printf("Socket create error: %s\n", socket_error());
+        return 1;
+    }
+
+    char servername[512] = {0};
+
+    switch(v7_waitforhello(s, servername, sizeof(servername))) {
+        case 1:
+            printf("V7 greeting error: %s\n", socket_error());
+            socket_destroy(s);
+            return 1;
+
+        case 2:
+            printf("V7 greeting error, not a v7 server!\n");
+            socket_destroy(s);
+            return 1;
+
+        default:
+        break;
+    }
+
+    printf("\x1b[H\x1b[2J\x1b[3J[ %s ]\n", servername);
+
+    char login_cmd[64] = {0};
+    char login_login[64] = {0};
+    char login_passwd[64] = {0};
+
+    loginScreen(login_cmd, login_login, login_passwd, sizeof(login_cmd), sizeof(login_login), sizeof(login_passwd));
+    v7_loginOrRegister(s, login_cmd, login_login, login_passwd);
+    
+    char login_errorcode[512] = {0};
+    char login_banreason[512] = {0};
+
+    switch(v7_loginOKCheck(s, login_errorcode, login_banreason, sizeof(login_errorcode), sizeof(login_banreason))) {
+        case 1:
+            printf("\nV7 login error: %s\n", socket_error());
+            socket_destroy(s);
+            return 1;
+        
+        case 2:
+            printf("\nV7 login error, is this a v7 server?\n");
+            socket_destroy(s);
+            return 1;
+
+        case 3:
+            printf("\nV7 login error: %s\n", login_errorcode);
+            socket_destroy(s);
+            return 1;
+
+        case 4:
+            printf("\nYou are banned!\n%s\n", login_banreason);
+            socket_destroy(s);
+            return 0;
+
+        default:
+        break;
+    }
+
+    joinRoom(s, "general");
+
+    misc_nonblock_enable();
+    while(1) {
+        char buffer[4096] = {0};
+        if(socket_recv_nonblock(s, buffer, sizeof(buffer) - 1) <= 0) {
+            printf("\nDisconnected!\n");
+            socket_destroy(s);
+            return 0;
+        }
+
+        int ptr = 0;
+        while(buffer[ptr] && (buffer[ptr] != '\n')) {
+            char message[4096] = {0};
+            int i = 0;
+            while(buffer[ptr] && (buffer[ptr] != '\n')) {
+                message[i] = buffer[ptr];
+                i++;
+                ptr++;
+            }
+            if(buffer[ptr] == '\n') ptr++;
+
+            char *token = strtok(message, "|");
+
+            char author[64] = {0};
+            char content[1024] = {0};
+
+            if(token == NULL) continue;
+            if(strncmp(token, "msg", sizeof(buffer))) 
+                continue;
+
+            token = strtok(NULL, "|");
+            if(token == NULL) continue;
+            v7_decode(author, token, sizeof(author));
+            token = strtok(NULL, "|");
+            if(token == NULL) continue;
+            v7_decode(content, token, sizeof(content));
+            printf("<%s> %s\n", author, content);
+        }
+
+        if(fgets(buffer, sizeof(buffer) - 1, stdin) == NULL)
+            misc_rest();
+        else {
+            printf("\x1b[1A\x1b[2K");
+            misc_trimlf(buffer);
+            if(!strcmp(buffer, "/help")) {
+                printf(
+                    "\nCommand list:\n"
+                    "/clear\n"
+                    "/quit\n"
+                    "/room #roomname\n"
+                );
+            } else if(!strcmp(buffer, "/room")) {
+                printf("\nUsage: /room #roomname\n");
+            } else if(!misc_startswith(buffer, "/room #")) {
+                joinRoom(s, buffer + 7);
+            } else if(!strcmp(buffer, "/clear")) {
+                printf("\x1b[H\x1b[2J\x1b[3J");
+            } else if(!strcmp(buffer, "/quit")) {
+                printf("\nGoodbye!\n");
+                socket_destroy(s);
+                return 0;
+            } else v7_sendMsg(s, buffer);
+        }
+    }
+
+    return 0;
+}
