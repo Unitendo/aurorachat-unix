@@ -4,8 +4,8 @@
 #include <misc.h>
 #include <string.h>
 
-// #define DEFAULT_IP "::FFFF:127.0.0.1"
 #define DEFAULT_IP "::FFFF:104.236.25.60"
+// #define DEFAULT_IP "::FFFF:127.0.0.1"
 #define DEFAULT_PORT 7070
 
 void setupIP(char *ip, short *port, size_t ip_n) {
@@ -27,6 +27,38 @@ void setupIP(char *ip, short *port, size_t ip_n) {
             strncpy(ip, DEFAULT_IP, ip_n - 1);
             *port = DEFAULT_PORT;
     }
+}
+
+int showRules(int s, const char *servername) {
+    printf("\x1b[H\x1b[2J\x1b[3J[ %s - Rules ]\n\n", servername);
+    char buffer[16384] = {0};
+    char buffer2[64] = {0};
+    v7_sendRulesRequest(s);
+    switch(v7_getRulesResponse(s, buffer, sizeof(buffer))) {
+        case 1:
+            printf("v7 rules error: %s\n", socket_error());
+            socket_destroy(s);
+            return 1;
+
+        case 2:
+            printf("v7 rules error! (is this a v7 server?)\n");
+            socket_destroy(s);
+            return 1;
+
+        default: {
+            int linecounter = 0;
+            for(char *token = strtok(buffer, "\n"); token; token = strtok(NULL, "\n")) {
+                printf("%s\n", token);
+                linecounter++;
+                if(linecounter % 12 == 0) {
+                    fgets(buffer2, sizeof(buffer2) - 1, stdin);
+                    printf("\x1b[H\x1b[2J\x1b[3J");
+                }
+            }
+            fgets(buffer2, sizeof(buffer2) - 1, stdin);
+        }
+    }
+    return 0;
 }
 
 int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login_n, size_t passwd_n) {
@@ -85,12 +117,12 @@ int main() {
 
     switch(v7_waitforhello(s, servername, sizeof(servername))) {
         case 1:
-            printf("V7 greeting error: %s\n", socket_error());
+            printf("v7 greeting error: %s\n", socket_error());
             socket_destroy(s);
             return 1;
 
         case 2:
-            printf("V7 greeting error, not a v7 server!\n");
+            printf("v7 greeting error, not a v7 server!\n");
             socket_destroy(s);
             return 1;
 
@@ -98,13 +130,18 @@ int main() {
         break;
     }
 
+    if(showRules(s, servername))
+        return 1;
+
     printf("\x1b[H\x1b[2J\x1b[3J[ %s ]\n", servername);
 
     char login_cmd[64] = {0};
     char login_login[64] = {0};
     char login_passwd[64] = {0};
 
-    loginScreen(login_cmd, login_login, login_passwd, sizeof(login_cmd), sizeof(login_login), sizeof(login_passwd));
+    if(loginScreen(login_cmd, login_login, login_passwd, sizeof(login_cmd), sizeof(login_login), sizeof(login_passwd)))
+        return 0;
+    
     v7_loginOrRegister(s, login_cmd, login_login, login_passwd);
     
     char login_errorcode[512] = {0};
@@ -112,17 +149,17 @@ int main() {
 
     switch(v7_loginOKCheck(s, login_errorcode, login_banreason, sizeof(login_errorcode), sizeof(login_banreason))) {
         case 1:
-            printf("\nV7 login error: %s\n", socket_error());
+            printf("\nv7 login error: %s\n", socket_error());
             socket_destroy(s);
             return 1;
         
         case 2:
-            printf("\nV7 login error, is this a v7 server?\n");
+            printf("\nv7 login error, is this a v7 server?\n");
             socket_destroy(s);
             return 1;
 
         case 3:
-            printf("\nV7 login error: %s\n", login_errorcode);
+            printf("\nv7 login error: %s\n", login_errorcode);
             socket_destroy(s);
             return 1;
 

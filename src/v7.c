@@ -95,6 +95,30 @@ void v7_decode(char *dst, const char *src, size_t n) {
     dst[n - 1] = 0;
 }
 
+void v7_sendRulesRequest(int s) {
+    const char *buffer = "rules|\n";
+    socket_send(s, buffer, strlen(buffer));
+}
+
+int v7_getRulesResponse(int s, char *rules, size_t rules_n) {
+    char buffer[16384] = {0};
+
+    if(socket_recv(s, buffer, sizeof(buffer) - 1) == -1)
+        return 1;
+
+    char *token = strtok(buffer, "|");
+    if(!token) return 2;
+    if(strncmp(token, "rules", sizeof(buffer)))
+        return 2;
+
+    rules[0] = 0;
+    token = strtok(NULL, "|");
+    if(!token) return 2;
+    v7_decode(rules, token, rules_n);
+    rules[rules_n - 1] = 0;
+    return 0;
+}
+
 void v7_loginOrRegister(int s, const char *cmd, const char *login, const char *passwd) {
     char buffer[1024] = {0};
 
