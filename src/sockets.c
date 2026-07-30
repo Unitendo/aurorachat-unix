@@ -40,3 +40,16 @@ size_t socket_recv_nonblock(int s, void *b, size_t n) {
 size_t socket_send(int s, const void *b, size_t n) {
     return send(s, b, n, 0);
 }
+
+int socket_wouldveblocked() {
+    if(errno == EAGAIN) return 1;
+    if(errno == EWOULDBLOCK) return 1;
+    return 0;
+}
+
+int socket_stillalive(int s) {
+    int err = 0;
+    socklen_t err_size = sizeof(err);
+    getsockopt(s, SOL_SOCKET, SO_ERROR, &err, &err_size);
+    return !err;
+}

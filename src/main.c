@@ -29,20 +29,20 @@ void setupIP(char *ip, short *port, size_t ip_n) {
     }
 }
 
-int showRules(int s, const char *servername) {
+int showRules(SOCKBUF_T *sb, const char *servername) {
     printf("\x1b[H\x1b[2J\x1b[3J[ %s - Rules ]\n\n", servername);
     char buffer[16384] = {0};
     char buffer2[64] = {0};
-    v7_sendRulesRequest(s);
-    switch(v7_getRulesResponse(s, buffer, sizeof(buffer))) {
+    v7_sendRulesRequest(sb->socket);
+    switch(v7_getRulesResponse(sb, buffer, sizeof(buffer))) {
         case 1:
             printf("v7 rules error: %s\n", socket_error());
-            socket_destroy(s);
+            socket_destroy(sb->socket);
             return 1;
 
         case 2:
             printf("v7 rules error! (is this a v7 server?)\n");
-            socket_destroy(s);
+            socket_destroy(sb->socket);
             return 1;
 
         default: {
@@ -113,9 +113,12 @@ int main() {
         return 1;
     }
 
+    SOCKBUF_T sb;
+    sockbuf_init(&sb, s);
+
     char servername[512] = {0};
 
-    switch(v7_waitforhello(s, servername, sizeof(servername))) {
+    switch(v7_waitforhello(&sb, servername, sizeof(servername))) {
         case 1:
             printf("v7 greeting error: %s\n", socket_error());
             socket_destroy(s);
@@ -130,7 +133,7 @@ int main() {
         break;
     }
 
-    if(showRules(s, servername))
+    if(showRules(&sb, servername))
         return 1;
 
     printf("\x1b[H\x1b[2J\x1b[3J[ %s ]\n", servername);
@@ -147,7 +150,7 @@ int main() {
     char login_errorcode[512] = {0};
     char login_banreason[512] = {0};
 
-    switch(v7_loginOKCheck(s, login_errorcode, login_banreason, sizeof(login_errorcode), sizeof(login_banreason))) {
+    switch(v7_loginOKCheck(&sb, login_errorcode, login_banreason, sizeof(login_errorcode), sizeof(login_banreason))) {
         case 1:
             printf("\nv7 login error: %s\n", socket_error());
             socket_destroy(s);
@@ -177,24 +180,14 @@ int main() {
     misc_nonblock_enable();
     while(1) {
         char buffer[4096] = {0};
-        if(socket_recv_nonblock(s, buffer, sizeof(buffer) - 1) <= 0) {
-            printf("\nDisconnected!\n");
-            socket_destroy(s);
-            return 0;
-        }
 
-        int ptr = 0;
-        while(buffer[ptr] && (buffer[ptr] != '\n')) {
-            char message[4096] = {0};
-            int i = 0;
-            while(buffer[ptr] && (buffer[ptr] != '\n')) {
-                message[i] = buffer[ptr];
-                i++;
-                ptr++;
-            }
-            if(buffer[ptr] == '\n') ptr++;
+        size_t recvd;
+        while( (recvd = sockbuf_getline_nonblock(&sb, buffer, sizeof(buffer) - 1)) ) {
+            if(recvd == -1)
+                break;
 
-            char *token = strtok(message, "|");
+            buffer[recvd] = 0;
+            char *token = strtok(buffer, "|");
 
             char author[64] = {0};
             char content[1024] = {0};
@@ -210,6 +203,12 @@ int main() {
             if(token == NULL) continue;
             v7_decode(content, token, sizeof(content));
             printf("<%s> %s\n", author, content);
+        }
+
+        if(!socket_stillalive(s)) {
+            printf("\nDisconnected: %s\n", socket_error());
+            socket_destroy(s);
+            return 0;
         }
 
         if(fgets(buffer, sizeof(buffer) - 1, stdin) == NULL)

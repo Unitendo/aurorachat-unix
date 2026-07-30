@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int v7_waitforhello(int s, char *servername, size_t sname_n) {
+int v7_waitforhello(SOCKBUF_T *sb, char *servername, size_t sname_n) {
     char buffer[1024] = {0};
     
-    if(socket_recv(s, buffer, sizeof(buffer) - 1) == -1)
+    if(sockbuf_getline(sb, buffer, sizeof(buffer) - 1) == -1)
         return 1;
 
     char *token = strtok(buffer, "|");
@@ -100,10 +100,10 @@ void v7_sendRulesRequest(int s) {
     socket_send(s, buffer, strlen(buffer));
 }
 
-int v7_getRulesResponse(int s, char *rules, size_t rules_n) {
+int v7_getRulesResponse(SOCKBUF_T *sb, char *rules, size_t rules_n) {
     char buffer[16384] = {0};
 
-    if(socket_recv(s, buffer, sizeof(buffer) - 1) == -1)
+    if(sockbuf_getline(sb, buffer, sizeof(buffer) - 1) == -1)
         return 1;
 
     char *token = strtok(buffer, "|");
@@ -132,10 +132,10 @@ void v7_loginOrRegister(int s, const char *cmd, const char *login, const char *p
     socket_send(s, buffer, strlen(buffer));
 }
 
-int v7_loginOKCheck(int s, char *err, char *banmsg, size_t err_n, size_t ban_n) {
+int v7_loginOKCheck(SOCKBUF_T *sb, char *err, char *banmsg, size_t err_n, size_t ban_n) {
     char buffer[1024] = {0};
 
-    if(socket_recv(s, buffer, sizeof(buffer) - 1) == -1)
+    if(sockbuf_getline(sb, buffer, sizeof(buffer) - 1) == -1)
         return 1;
 
     char *token = strtok(buffer, "|");
