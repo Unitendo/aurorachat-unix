@@ -51,14 +51,25 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
                 printf("%s\n", token);
                 linecounter++;
                 if(linecounter % 12 == 0) {
+                    printf("\n[ Press enter ]\n");
                     fgets(buffer2, sizeof(buffer2) - 1, stdin);
                     printf("\x1b[H\x1b[2J\x1b[3J");
                 }
             }
+            printf("\n[ Press enter ]\n");
             fgets(buffer2, sizeof(buffer2) - 1, stdin);
         }
     }
     return 0;
+}
+
+void showMOTD(const char *servername, const char *motd) {
+    char buffer[64] = {0};
+    misc_nonblock_disable();
+    printf("\x1b[H\x1b[2J\x1b[3J[ %s - Message of the day ]\n\n%s\n\n[ Press enter ]\n", servername, motd);
+    fgets(buffer, sizeof(buffer) - 1, stdin);
+    misc_nonblock_enable();
+    printf("\x1b[H\x1b[2J\x1b[3J");
 }
 
 int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login_n, size_t passwd_n) {
@@ -179,6 +190,7 @@ int main() {
 
     misc_nonblock_enable();
     while(1) {
+        char motd[4096] = {0};
         char buffer[4096] = {0};
 
         size_t recvd;
@@ -193,6 +205,13 @@ int main() {
             char content[1024] = {0};
 
             if(token == NULL) continue;
+            
+            if(!strncmp(token, "motd", sizeof(buffer))) {
+                token = strtok(NULL, "|");
+                if(token == NULL) continue;
+                v7_decode(motd, token, sizeof(motd));
+            }
+            
             if(strncmp(token, "msg", sizeof(buffer))) 
                 continue;
 
@@ -211,6 +230,8 @@ int main() {
             return 0;
         }
 
+        if(*motd) showMOTD(servername, motd);
+
         if(fgets(buffer, sizeof(buffer) - 1, stdin) == NULL)
             misc_rest();
         else {
@@ -222,6 +243,7 @@ int main() {
                     "/clear\n"
                     "/quit\n"
                     "/room #roomname\n"
+                    "/motd\n"
                 );
             } else if(!strcmp(buffer, "/room")) {
                 printf("\nUsage: /room #roomname\n");
@@ -233,6 +255,8 @@ int main() {
                 printf("\nGoodbye!\n");
                 socket_destroy(s);
                 return 0;
+            } else if(!strcmp(buffer, "/motd")) {
+                v7_sendMOTDReq(s);
             } else v7_sendMsg(s, buffer);
         }
     }
