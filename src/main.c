@@ -241,6 +241,7 @@ int main() {
         if(!socket_stillalive(s)) {
             printf("\nDisconnected: %s\n", socket_error());
             socket_destroy(s);
+            misc_nonblock_disable();
             return 0;
         }
 
@@ -268,6 +269,7 @@ int main() {
             } else if(!strcmp(buffer, "/quit")) {
                 printf("\nGoodbye!\n");
                 socket_destroy(s);
+                misc_nonblock_disable();
                 return 0;
             } else if(!strcmp(buffer, "/motd")) {
                 v7_sendMOTDReq(s);
