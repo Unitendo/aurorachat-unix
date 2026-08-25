@@ -4,11 +4,24 @@
 #include <misc.h>
 #include <string.h>
 
+#ifdef AUC_ISBBS
+
+#define DEFAULT_IP "::1"
+#define DEFAULT_PORT 7070
+
+#else
+
 #define DEFAULT_IP "::FFFF:104.236.25.60"
 // #define DEFAULT_IP "::FFFF:127.0.0.1"
 #define DEFAULT_PORT 7070
 
+#endif
+
 void setupIP(char *ip, short *port, size_t ip_n) {
+    #ifdef AUC_ISBBS
+    strncpy(ip, DEFAULT_IP, ip_n - 1);
+    *port = DEFAULT_PORT;
+    #else
     char buffer[16] = {0};
     printf("Setup IP [Y/N]? ");
     fgets(buffer, sizeof(buffer) - 1, stdin);
@@ -27,6 +40,7 @@ void setupIP(char *ip, short *port, size_t ip_n) {
             strncpy(ip, DEFAULT_IP, ip_n - 1);
             *port = DEFAULT_PORT;
     }
+    #endif
 }
 
 int showRules(SOCKBUF_T *sb, const char *servername) {
