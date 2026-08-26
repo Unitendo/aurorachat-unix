@@ -74,6 +74,10 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
             fgets(buffer2, sizeof(buffer2) - 1, stdin);
         }
     }
+
+    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\nUser guide:\n/quit - Exit AuroraChat\n/help - List all available commands\n\n[ Press enter ]\n");
+    fgets(buffer2, sizeof(buffer2) - 1, stdin);
+
     return 0;
 }
 
