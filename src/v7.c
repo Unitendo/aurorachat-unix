@@ -85,6 +85,9 @@ void v7_decode(char *dst, const char *src, size_t n) {
                 j++;
             break;
 
+            case 0x1b:
+                break;
+
             default:
                 dst[j] = c;
                 j++;

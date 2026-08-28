@@ -84,7 +84,7 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
 void showMOTD(const char *servername, const char *motd) {
     char buffer[64] = {0};
     misc_nonblock_disable();
-    printf("\x1b[H\x1b[2J\x1b[3J[ %s - Message of the day ]\n\n%s\n\n[ Press enter ]\n", servername, motd);
+    printf("\x1b[0m\x1b[H\x1b[2J\x1b[3J[ %s - Message of the day ]\n\n%s\n\n[ Press enter ]\n", servername, motd);
     fgets(buffer, sizeof(buffer) - 1, stdin);
     misc_nonblock_enable();
     printf("\x1b[H\x1b[2J\x1b[3J");
@@ -239,7 +239,7 @@ int main() {
             token = strtok(NULL, "|");
             if(token == NULL) continue;
             v7_decode(content, token, sizeof(content));
-            printf("<%s> %s\n", author, content);
+            printf("\x1b[2K\r\x1b[0m<\x1b[1m%s\x1b[22m> %s\n", author, content);
         }
 
         if(!socket_stillalive(s)) {
@@ -249,12 +249,15 @@ int main() {
             return 0;
         }
 
+        printf("\x1b[3m");
+        fflush(stdout);
+
         if(*motd) showMOTD(servername, motd);
 
         if(fgets(buffer, sizeof(buffer) - 1, stdin) == NULL)
             misc_rest();
         else {
-            printf("\x1b[1A\x1b[2K");
+            printf("\x1b[1A\x1b[2K\x1b[0m");
             misc_trimlf(buffer);
             if(!strcmp(buffer, "/help")) {
                 printf(
