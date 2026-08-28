@@ -123,9 +123,10 @@ int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login
     }
 }
 
-void joinRoom(int s, const char *room) {
+void joinRoom(int s, const char *room, char *roombuf, size_t n) {
     printf("\x1b[H\x1b[2J\x1b[3JCurrent room: #%s\n", room);
     v7_joinRoom(s, room);
+    strncpy(roombuf, room, n - 1);
 }
 
 int main() {
@@ -204,7 +205,8 @@ int main() {
         break;
     }
 
-    joinRoom(s, "general");
+    char currentroomname[512] = {0};
+    joinRoom(s, "general", currentroomname, sizeof(currentroomname));
 
     misc_nonblock_enable();
     while(1) {
@@ -264,13 +266,18 @@ int main() {
                     "\nCommand list:\n"
                     "/clear\n"
                     "/quit\n"
+                    "/room\n"
                     "/room #roomname\n"
+                    "/dm @username\n"
                     "/motd\n"
+                    "\n"
                 );
             } else if(!strcmp(buffer, "/room")) {
-                printf("\nUsage: /room #roomname\n");
+                printf("\nUsage: /room #roomname\nCurrent room: #%s\n\n", currentroomname);
             } else if(!misc_startswith(buffer, "/room #")) {
-                joinRoom(s, buffer + 7);
+                joinRoom(s, buffer + 7, currentroomname, sizeof(currentroomname));
+            } else if(!misc_startswith(buffer, "/dm @")) {
+                joinRoom(s, buffer + 4, currentroomname, sizeof(currentroomname));
             } else if(!strcmp(buffer, "/clear")) {
                 printf("\x1b[H\x1b[2J\x1b[3J");
             } else if(!strcmp(buffer, "/quit")) {
