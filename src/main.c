@@ -244,8 +244,15 @@ int main() {
             printf("\x1b[2K\r\x1b[0m<\x1b[1m%s\x1b[22m> %s\n", author, content);
         }
 
+        if(recvd == 0) {
+            printf("\x1b[0m\nDisconnected\n");
+            socket_destroy(s);
+            misc_nonblock_disable();
+            return 0;
+        }
+
         if(!socket_stillalive(s)) {
-            printf("\nDisconnected: %s\n", socket_error());
+            printf("\x1b[0m\nDisconnected: %s\n", socket_error());
             socket_destroy(s);
             misc_nonblock_disable();
             return 0;
