@@ -11,7 +11,7 @@
 
 #else
 
-#define DEFAULT_IP "::FFFF:104.236.25.60"
+#define DEFAULT_IP "::FFFF:144.217.26.87"
 // #define DEFAULT_IP "::FFFF:127.0.0.1"
 #define DEFAULT_PORT 7070
 
