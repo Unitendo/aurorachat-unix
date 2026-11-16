@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <sockets.h>
 #include <v7.h>
 #include <misc.h>
@@ -223,6 +225,7 @@ int main() {
 
             char author[64] = {0};
             char content[1024] = {0};
+            char time[64] = {0};
 
             if(token == NULL) continue;
             
@@ -241,7 +244,15 @@ int main() {
             token = strtok(NULL, "|");
             if(token == NULL) continue;
             v7_decode(content, token, sizeof(content));
-            printf("\x1b[2K\r\x1b[0m<\x1b[1m%s\x1b[22m> %s\n", author, content);
+            token = strtok(NULL, "|");
+            if(token != NULL) {
+                time_t timestamp = strtol(token, NULL, 10);
+                struct tm *ts = localtime(&timestamp);
+                if(ts != NULL) {
+                    snprintf(time, 63, "\x1b[2m[%02d:%02d]\x1b[0m ", ts->tm_hour, ts->tm_min);
+                }
+            }
+            printf("\x1b[2K\r\x1b[0m%s<\x1b[1m%s\x1b[22m> %s\n", time, author, content);
         }
 
         if(recvd == 0) {
