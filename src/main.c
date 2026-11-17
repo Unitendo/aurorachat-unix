@@ -98,13 +98,11 @@ int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login
         case 'l':
             strncpy(cmd, "login", cmd_n - 1);
             return 0;
-        break;
 
         case 'R':
         case 'r':
             strncpy(cmd, "register", cmd_n - 1);
             return 0;
-        break;
 
         default:
             return 1;
@@ -117,13 +115,53 @@ void joinRoom(int s, const char *room, char *roombuf, size_t n) {
     strncpy(roombuf, room, n - 1);
 }
 
-int main() {
-    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\n");
+enum ARGSTATE {
+    ARGS_NORMAL,
+    ARGS_IP,
+    ARGS_PORT
+};
 
+int main(int argc, char **argv) {
     char server_ip[256] = {0};
-    short server_port = 0;
+    strncpy(server_ip, DEFAULT_IP, sizeof(server_ip) - 1);
+    short server_port = DEFAULT_PORT;
+    int server_ipwasspecified = 0;
+    int showhelp = 0;
+    enum ARGSTATE argstate = ARGS_NORMAL;
 
-    setupIP(server_ip, &server_port, sizeof(server_ip));
+    for(int i=1;i<argc;i++) {
+        switch(argstate) {
+            case ARGS_NORMAL:
+                if(!strcmp(argv[i], "-i")) argstate = ARGS_IP;
+                else if(!strcmp(argv[i], "-p")) argstate = ARGS_PORT;
+                else if(!strcmp(argv[i], "-h")) showhelp = 1;
+                else {
+                    printf("Unknown parameter: %s\n", argv[i]);
+                    return 1;
+                }
+            break;
+
+            case ARGS_IP:
+                argstate = ARGS_NORMAL;
+                strncpy(server_ip, argv[i], sizeof(server_ip) - 1);
+                server_ipwasspecified = 1;
+            break;
+
+            case ARGS_PORT:
+                argstate = ARGS_NORMAL;
+                server_port = strtol(argv[i], NULL, 0);
+                server_ipwasspecified = 1;
+            break;
+        }
+    }
+
+    if(showhelp) {
+        printf("Usage: %s [-h] [-i IP] [-p PORT]\n", argv[0]);
+        return 0;
+    }
+
+    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\n");
+    if(!server_ipwasspecified) setupIP(server_ip, &server_port, sizeof(server_ip));
 
     int s = socket_create(server_ip, server_port);
     if(s == -1) {
