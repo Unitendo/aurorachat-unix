@@ -15,9 +15,13 @@ char esc_unbold[16] = "\x1b[22m";
 char esc_clrline[16] = "\x1b[2K";
 char esc_goup[16] = "\x1b[1A";
 
-#define DEFAULT_IP "::FFFF:144.217.26.87"
-// #define DEFAULT_IP "::FFFF:127.0.0.1"
-#define DEFAULT_PORT 7070
+#ifndef DEFAULT_IP
+    #define DEFAULT_IP "::FFFF:144.217.26.87"
+#endif
+
+#ifndef DEFAULT_PORT
+    #define DEFAULT_PORT 7070
+#endif
 
 void setupIP(char *ip, short *port, size_t ip_n) {
     char buffer[16] = {0};
