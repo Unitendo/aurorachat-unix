@@ -6,6 +6,15 @@
 #include <misc.h>
 #include <string.h>
 
+char esc_clear[128] = "\x1b[H\x1b[2J\x1b[3J";
+char esc_reset[16] = "\x1b[0m";
+char esc_bold[16] = "\x1b[1m";
+char esc_dim[16] = "\x1b[2m";
+char esc_italic[16] = "\x1b[3m";
+char esc_unbold[16] = "\x1b[22m";
+char esc_clrline[16] = "\x1b[2K";
+char esc_goup[16] = "\x1b[1A";
+
 #define DEFAULT_IP "::FFFF:144.217.26.87"
 // #define DEFAULT_IP "::FFFF:127.0.0.1"
 #define DEFAULT_PORT 7070
@@ -32,7 +41,7 @@ void setupIP(char *ip, short *port, size_t ip_n) {
 }
 
 int showRules(SOCKBUF_T *sb, const char *servername) {
-    printf("\x1b[H\x1b[2J\x1b[3J[ %s - Rules ]\n\n", servername);
+    printf("%s[ %s - Rules ]\n\n", esc_clear, servername);
     char buffer[16384] = {0};
     char buffer2[64] = {0};
     v7_sendRulesRequest(sb->socket);
@@ -55,7 +64,7 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
                 if(linecounter % 12 == 0) {
                     printf("\n[ Press enter ]\n");
                     fgets(buffer2, sizeof(buffer2) - 1, stdin);
-                    printf("\x1b[H\x1b[2J\x1b[3J");
+                    printf("%s", esc_clear);
                 }
             }
             printf("\n[ Press enter ]\n");
@@ -63,7 +72,7 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
         }
     }
 
-    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\nUser guide:\n/quit - Exit AuroraChat\n/help - List all available commands\n\n[ Press enter ]\n");
+    printf("%s[ AuroraChat Unix ]\nUser guide:\n/quit - Exit AuroraChat\n/help - List all available commands\n\n[ Press enter ]\n", esc_clear);
     fgets(buffer2, sizeof(buffer2) - 1, stdin);
 
     return 0;
@@ -72,10 +81,10 @@ int showRules(SOCKBUF_T *sb, const char *servername) {
 void showMOTD(const char *servername, const char *motd) {
     char buffer[64] = {0};
     misc_nonblock_disable();
-    printf("\x1b[0m\x1b[H\x1b[2J\x1b[3J[ %s - Message of the day ]\n\n%s\n\n[ Press enter ]\n", servername, motd);
+    printf("%s%s[ %s - Message of the day ]\n\n%s\n\n[ Press enter ]\n", esc_reset, esc_clear, servername, motd);
     fgets(buffer, sizeof(buffer) - 1, stdin);
     misc_nonblock_enable();
-    printf("\x1b[H\x1b[2J\x1b[3J");
+    printf("%s", esc_clear);
 }
 
 int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login_n, size_t passwd_n) {
@@ -110,7 +119,7 @@ int loginScreen(char *cmd, char *login, char *passwd, size_t cmd_n, size_t login
 }
 
 void joinRoom(int s, const char *room, char *roombuf, size_t n) {
-    printf("\x1b[H\x1b[2J\x1b[3JCurrent room: #%s\n", room);
+    printf("%sCurrent room: #%s\n", esc_clear, room);
     v7_joinRoom(s, room);
     strncpy(roombuf, room, n - 1);
 }
@@ -126,6 +135,7 @@ int main(int argc, char **argv) {
     strncpy(server_ip, DEFAULT_IP, sizeof(server_ip) - 1);
     short server_port = DEFAULT_PORT;
     int server_ipwasspecified = 0;
+    int useescape = 1;
     int showhelp = 0;
     enum ARGSTATE argstate = ARGS_NORMAL;
 
@@ -134,6 +144,7 @@ int main(int argc, char **argv) {
             case ARGS_NORMAL:
                 if(!strcmp(argv[i], "-i")) argstate = ARGS_IP;
                 else if(!strcmp(argv[i], "-p")) argstate = ARGS_PORT;
+                else if(!strcmp(argv[i], "-n")) useescape = 0;
                 else if(!strcmp(argv[i], "-h")) showhelp = 1;
                 else {
                     printf("Unknown parameter: %s\n", argv[i]);
@@ -156,11 +167,24 @@ int main(int argc, char **argv) {
     }
 
     if(showhelp) {
-        printf("Usage: %s [-h] [-i IP] [-p PORT]\n", argv[0]);
+        printf("Usage: %s [-h] [-i IP] [-p PORT] [-n]\n", argv[0]);
         return 0;
     }
 
-    printf("\x1b[H\x1b[2J\x1b[3J[ AuroraChat Unix ]\n");
+    if(!useescape) {
+        for(int i=0;i<127;i++) 
+            esc_clear[i] = '\n';
+        esc_clear[127] = 0;
+        esc_reset[0] = 0;
+        esc_bold[0] = 0;
+        esc_dim[0] = 0;
+        esc_italic[0] = 0;
+        esc_unbold[0] = 0;
+        esc_clrline[0] = 0;
+        esc_goup[0] = 0;
+    }
+
+    printf("%s[ AuroraChat Unix ]\n", esc_clear);
     if(!server_ipwasspecified) setupIP(server_ip, &server_port, sizeof(server_ip));
 
     int s = socket_create(server_ip, server_port);
@@ -192,7 +216,7 @@ int main(int argc, char **argv) {
     if(showRules(&sb, servername))
         return 1;
 
-    printf("\x1b[H\x1b[2J\x1b[3J[ %s ]\n", servername);
+    printf("%s[ %s ]\n", esc_clear, servername);
 
     char login_cmd[64] = {0};
     char login_login[64] = {0};
@@ -273,27 +297,27 @@ int main(int argc, char **argv) {
                 time_t timestamp = strtol(token, NULL, 10);
                 struct tm *ts = localtime(&timestamp);
                 if(ts != NULL) {
-                    snprintf(time, 63, "\x1b[2m[%02d:%02d]\x1b[0m ", ts->tm_hour, ts->tm_min);
+                    snprintf(time, 63, "%s[%02d:%02d]%s ", esc_dim, ts->tm_hour, ts->tm_min, esc_unbold);
                 }
             }
-            printf("\x1b[2K\r\x1b[0m%s<\x1b[1m%s\x1b[22m> %s\n", time, author, content);
+            printf("%s\r%s%s<%s%s%s> %s\n", esc_clrline, esc_reset, time, esc_bold, author, esc_unbold, content);
         }
 
         if(recvd == 0) {
-            printf("\x1b[0m\nDisconnected\n");
+            printf("%s\nDisconnected\n", esc_reset);
             socket_destroy(s);
             misc_nonblock_disable();
             return 0;
         }
 
         if(!socket_stillalive(s)) {
-            printf("\x1b[0m\nDisconnected: %s\n", socket_error());
+            printf("%s\nDisconnected: %s\n", esc_reset, socket_error());
             socket_destroy(s);
             misc_nonblock_disable();
             return 0;
         }
 
-        printf("\x1b[3m");
+        printf("%s", esc_italic);
         fflush(stdout);
 
         if(*motd) showMOTD(servername, motd);
@@ -301,7 +325,7 @@ int main(int argc, char **argv) {
         if(fgets(buffer, sizeof(buffer) - 1, stdin) == NULL)
             misc_rest();
         else {
-            printf("\x1b[1A\x1b[2K\x1b[0m");
+            printf("%s%s%s", esc_goup, esc_clrline, esc_reset);
             misc_trimlf(buffer);
             if(!strcmp(buffer, "/help")) {
                 printf(
@@ -321,7 +345,7 @@ int main(int argc, char **argv) {
             } else if(!misc_startswith(buffer, "/dm @")) {
                 joinRoom(s, buffer + 4, currentroomname, sizeof(currentroomname));
             } else if(!strcmp(buffer, "/clear")) {
-                printf("\x1b[H\x1b[2J\x1b[3J");
+                printf("%s", esc_clear);
             } else if(!strcmp(buffer, "/quit")) {
                 printf("\nGoodbye!\n");
                 socket_destroy(s);

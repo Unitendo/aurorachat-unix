@@ -8,7 +8,7 @@ INC=$(wildcard include/*.h)
 SRC=$(wildcard src/*.c)
 OBJ=$(patsubst src/%.c,bin/%.o,$(SRC))
 BIN=bin/aurorachat
-RUN=$(BIN) -h
+RUN=$(BIN)
 
 .PHONY: all
 
